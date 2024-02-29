@@ -13,13 +13,15 @@ from dora.log import LogProgress, bold
 import torch
 import torch.nn.functional as F
 
-from . import augment, distrib, states, pretrained
-from .apply import apply_model
-from .ema import ModelEMA
-from .evaluate import evaluate, new_sdr
-from .svd import svd_penalty
-from .utils import pull_metric, EMA
-
+import augment, distrib, states, pretrained
+from apply import apply_model
+from ema import ModelEMA
+from evaluate import evaluate, new_sdr
+from svd import svd_penalty
+from utils import pull_metric, EMA
+import os
+from pathlib import Path
+from torch.utils.tensorboard import SummaryWriter
 logger = logging.getLogger(__name__)
 
 
@@ -63,6 +65,9 @@ class Solver(object):
         xp = get_xp()
         self.folder = xp.folder
         # Checkpoints
+        tensorboard_dir = self.folder / 'tensorboard'
+        os.makedirs(tensorboard_dir, exist_ok=True)
+        self.writer = SummaryWriter(tensorboard_dir)
         self.checkpoint_file = xp.folder / 'checkpoint.th'
         self.best_file = xp.folder / 'best.th'
         logger.debug("Checkpoint will be saved to %s", self.checkpoint_file.resolve())
@@ -345,13 +350,13 @@ class Solver(object):
             losses['reco'] = (reco * weights).sum() / weights.sum()
             losses['ms'] = ms
 
-            if not train:
-                nsdrs = new_sdr(sources, estimate.detach()).mean(0)
-                total = 0
-                for source, nsdr, w in zip(self.model.sources, nsdrs, weights):
-                    losses[f'nsdr_{source}'] = nsdr
-                    total += w * nsdr
-                losses['nsdr'] = total / weights.sum()
+            # if not train:
+            nsdrs = new_sdr(sources, estimate.detach()).mean(0)
+            total = 0
+            for source, nsdr, w in zip(self.model.sources, nsdrs, weights):
+                losses[f'nsdr_{source}'] = nsdr
+                total += w * nsdr
+            losses['nsdr'] = total / weights.sum()
 
             if train and args.svd.penalty > 0:
                 kw = dict(args.svd)
@@ -388,8 +393,12 @@ class Solver(object):
                 self.optimizer.zero_grad()
                 for ema in self.emas['batch']:
                     ema.update()
+
             losses = averager(losses)
             logs = self._format_train(losses)
+            if (idx+1) % self.args.misc.tensorboard_freq == 0:
+                print('batch', idx+1,'loss', logs['loss'], 'reco', logs['reco'], 'grad', logs['grad'])
+                self._log_tensorboard(epoch, idx, losses)
             logprog.update(**logs)
             # Just in case, clear some memory
             del loss, estimate, reco, ms
@@ -403,3 +412,10 @@ class Solver(object):
             for ema in self.emas['epoch']:
                 ema.update()
         return distrib.average(losses, idx + 1)
+
+    def _log_tensorboard(self, epoch, batch, losses):
+        # if self.writer is None:
+            
+        idx = epoch * len(self.loaders['train']) + batch
+        for k, v in losses.items():
+            self.writer.add_scalar(k, float(v), idx)

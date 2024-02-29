@@ -8,7 +8,7 @@ defaults:
 
 dummy:
 dset:
-  musdb: /checkpoint/defossez/datasets/musdbhq
+  musdb: /data5/sharmak/ai_music/data/musdbhq
   musdb_samplerate: 44100
   use_musdb: true   # set to false to not use musdb as training data.
   wav:  # path to custom wav dataset
@@ -38,7 +38,7 @@ test:
   nonhq:   # path to non hq MusDB for evaluation
 
 epochs: 360
-batch_size: 64
+batch_size: 4
 max_batches:  # limit the number of batches per epoch, useful for debugging
               # or if your dataset is gigantic.
 optim:
@@ -60,7 +60,7 @@ weights: [1., 1., 1., 1.]  # weights over each source for the training/valid los
 augment:
   shift_same: false
   repitch:
-    proba: 0.2
+    proba: 0 #CHANGED FROM 0.2
     max_tempo: 12
   remix:
     proba: 1
@@ -82,6 +82,7 @@ misc:
   num_prints: 4
   show: false
   verbose: false
+  tensorboard_freq: 2
 
 # List of decay for EMA at batch or epoch level, e.g. 0.999.
 # Batch level EMA are kept on GPU for speed.

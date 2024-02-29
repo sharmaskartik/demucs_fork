@@ -81,7 +81,9 @@ def EMA(beta: float = 1):
         for key, value in metrics.items():
             total[key] = total[key] * beta + weight * float(value)
             fix[key] = fix[key] * beta + weight
-        return {key: tot / fix[key] for key, tot in total.items()}
+            
+        ret = {key: tot / fix[key] for key, tot in total.items()}
+        return ret
     return _update
 
 
