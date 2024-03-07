@@ -397,8 +397,8 @@ class Solver(object):
             losses = averager(losses)
             logs = self._format_train(losses)
             if (idx+1) % self.args.misc.tensorboard_freq == 0:
-                print('batch', idx+1,'loss', logs['loss'], 'reco', logs['reco'], 'grad', logs['grad'])
-                self._log_tensorboard(epoch, idx, losses)
+                # print('batch', idx+1,f'{label}_loss', logs['loss'], f'{label}_reco', logs['reco'], f'{label}_grad', logs['grad'])
+                self._log_tensorboard(epoch, idx, losses, label)
             logprog.update(**logs)
             # Just in case, clear some memory
             del loss, estimate, reco, ms
@@ -413,9 +413,9 @@ class Solver(object):
                 ema.update()
         return distrib.average(losses, idx + 1)
 
-    def _log_tensorboard(self, epoch, batch, losses):
+    def _log_tensorboard(self, epoch, batch, losses, label):
         # if self.writer is None:
             
         idx = epoch * len(self.loaders['train']) + batch
         for k, v in losses.items():
-            self.writer.add_scalar(k, float(v), idx)
+            self.writer.add_scalar(f'{label}_{k}', float(v), idx)
